@@ -1,0 +1,51 @@
+name: Preview Deploy (gh-pages)
+
+# Fork-only preview deployment: builds the site with Pelican and publishes it
+# to the gh-pages branch so it can be served via GitHub Pages. This workflow
+# is intentionally scoped to this fork only (see the `if` condition below) so
+# it never runs on the upstream repository.
+
+on:
+  push:
+    branches-ignore:
+      - master
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: gh-pages-preview
+  cancel-in-progress: true
+
+jobs:
+  build-and-deploy:
+    if: github.repository == 'CodyCBakerPhD/centerforopenneuroscience.org'
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.x'
+
+      - name: Install requirements
+        run: pip install pelican markdown
+
+      - name: Build site
+        run: make html
+
+      - name: Remove production CNAME
+        # The production CNAME (centerforopenneuroscience.org) is copied into
+        # output/ by the build. Remove it so this preview doesn't try to
+        # serve under the production custom domain.
+        run: rm -f output/CNAME
+
+      - name: Deploy to gh-pages
+        uses: peaceiris/actions-gh-pages@v4
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          publish_dir: ./output
